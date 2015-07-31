@@ -14,7 +14,17 @@ let get_resp_response reader buffer
 '$'
 '*' *)
 
-type resp_response =  [ `String of string | `Error of string | `Array of resp_response | `Number of Int64.t ]
+(* Do some kind of "get or fail" method to avoid unwrapping the responses *)
+
+let read f reader =
+	f reader >>= function
+		| `Eof -> failwith "Unexpected"
+		| `Ok(c) -> return c
+
+let read_char r =
+	read Reader.read_char
+
+type resp_response =  [ `String of string | `Error of string | `Array of resp_response list | `Number of Int64.t ]
 
 let default_host = "localhost"
 
@@ -43,9 +53,6 @@ let resp_bulk_string reader =
 				(* TODO: check that the *)
 		else
 			failwith "Not enough characters read" *)
-(* Handle number format exception *)
-let read_number reader =
-	Reader.read_until reader ~keep_delim:false (`Pred(fun c -> not (Char.is_digit c)))
 
 
 (* Terminator string is \r\n *)
@@ -57,19 +64,45 @@ let rec resp_simple_string reader =
 			match result
 *)
 
-let rec read_until_terminator reader buffer =
-	Reader.read_char reader >>= fun result ->
-			match result with
-				| `Eof -> failwith "Unexpected end of file"
-				| `Ok(c) -> (* Using short-circuit && operator *)
-						if Buffer.length buffer > 0 && Buffer.nth buffer ((Buffer.length buffer) - 1) = '\r' && c = '\n' then
-							return (Buffer.contents buffer)
-						else
-							(Buffer.add_char buffer c; read_until_terminator reader buffer)
+
+let read_until_terminator reader buffer =
+	let rec loop () =
+	 Reader.read_char reader >>= function
+	 | `Eof -> failwith "Unexpected end of file"
+	 | `Ok('\r') -> Reader.read_char reader >>=  (function
+	 	| `Eof -> failwith "End of file"
+	 	| `Ok('\n') -> return (Buffer.contents buffer)
+	 	| `Ok(c) -> failwith "Illegal character in simple string"
+	 )
+	 | `Ok(c) -> Buffer.add_char buffer c; loop () in
+	 loop ()
+
+let read_fixed_line reader length =
+	let buffer = Bytes.create length in
+		Reader.really_read ~len:length reader buffer >>=
+			function 
+			| `Eof(len) -> failwith "Unexpected end of file"
+			| `Ok -> (Reader.read_char reader >>= function
+				| `Eof -> failwith "blah"
+				| `Ok(c) -> (Reader.read_char reader >>= function
+					| `Eof -> failwith "blah"
+					| `Ok(c') -> if c = '\r' && c' = '\n' then 
+									return (Bytes.unsafe_to_string buffer)
+									else
+									failwith "Blah"
+				)
+			)
 
 (* Optional buffer parameter *)
 let resp_simple_string reader =
 	read_until_terminator reader (Buffer.create 32) >>| fun result -> (`String result)
+
+(* Handle error parsing int *)
+(*
+let resp_bulk_string reader =
+	read_until_terminator reader (Buffer.create 32) >>= fun result ->
+		let len = int_of_string result in
+			Reader.read reader ~len:len *)
 
 let resp_integer reader =
 	read_until_terminator reader (Buffer.create 8) >>| fun result -> `Number (Int64.of_string result)
@@ -89,8 +122,9 @@ let terminate buffer c =
 let connection host port =
 	connect (to_host_and_port host port) 
 
-
-let rec parse_resp r buffer =
+let rec parse_resp_array r buffer =
+	failwith "foo"
+and parse_resp r buffer =
 	Reader.read_char r >>= function
 		| `Eof -> failwith "Unexpected end of file"
 		| `Ok(c) -> begin
