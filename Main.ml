@@ -21,7 +21,7 @@ let read f reader =
 		| `Eof -> failwith "Unexpected"
 		| `Ok(c) -> return c
 
-let read_char r =
+let read_char =
 	read Reader.read_char
 
 type resp_response =  [ `String of string | `Error of string | `Array of resp_response list | `Number of Int64.t ]
@@ -35,34 +35,6 @@ Out_channel.flush stdout
 
 let send_command writer com =
 	ignore (Writer.write_line writer com)
-
-let rec read_n_characters reader buffer num = 
-	if num = 0 then
-		return buffer
-	else
-	Reader.read_char reader >>= function
-		| `Eof -> return buffer
-		| `Ok(c) -> Buffer.add_char buffer c;
-			read_n_characters reader buffer (num - 1)
-
-(*
-let resp_bulk_string reader =
-	read_n_characters reader (Buffer.create 3) 3 >>= fun buffer ->
-		if Buffer.length buffer = 3 then
-			let num_bytes = Buffer.nth buffer 0 in
-				(* TODO: check that the *)
-		else
-			failwith "Not enough characters read" *)
-
-
-(* Terminator string is \r\n *)
-(*Make buffer an optional parameter*)
-(*
-let rec resp_simple_string reader =
-	let rec helper reader buffer =
-		Reader.read_char reader >>= fun result ->
-			match result
-*)
 
 
 let read_until_terminator reader buffer =
@@ -93,16 +65,25 @@ let read_fixed_line reader length =
 				)
 			)
 
+let read_length reader =
+	read_until_terminator reader (Buffer.create 8) >>| fun result -> Int64.of_string result
+
 (* Optional buffer parameter *)
 let resp_simple_string reader =
 	read_until_terminator reader (Buffer.create 32) >>| fun result -> (`String result)
 
 (* Handle error parsing int *)
-(*
+(* Just use the read length function *)
 let resp_bulk_string reader =
-	read_until_terminator reader (Buffer.create 32) >>= fun result ->
-		let len = int_of_string result in
-			Reader.read reader ~len:len *)
+	read_length reader >>= fun len -> let len = Int64.to_int len in
+	match len with Some(x) ->
+			read_fixed_line reader x >>| fun result -> 
+				read_char reader >>= fun c1 -> read_char reader >>= fun c2 -> 
+					if c1 = '\r' && c2 = '\n' then
+						return result
+					else
+						failwith "Unexpected terminator"
+						| _ -> failwith "Wrong int conversion"
 
 let resp_integer reader =
 	read_until_terminator reader (Buffer.create 8) >>| fun result -> `Number (Int64.of_string result)
@@ -110,20 +91,18 @@ let resp_integer reader =
 let resp_error reader =
 	read_until_terminator reader (Buffer.create 32) >>| fun result -> (`Error result)
 
-(*
-let rec resp_integer reader =
-	let rec helper reader buffer = *)
-
-
-let terminate buffer c =
-	let len = Buffer.length buffer in
-	len > 0 && Buffer.nth buffer (len - 1) = '\r' && c = '\n'
-
 let connection host port =
 	connect (to_host_and_port host port) 
 
-let rec parse_resp_array r buffer =
-	failwith "foo"
+let rec resp_array r buffer =
+	read_length r >>= fun len -> let len = Int64.to_int len in
+	match len with Some(x) ->
+		let rec helper reader lst count =
+			if count = 0 then return (`Array lst) else
+				parse_resp reader buffer >>= fun result ->
+					helper reader (result::lst) (count - 1) in
+					helper r [] x
+		| _ -> failwith "Wrong int conversion"
 and parse_resp r buffer =
 	Reader.read_char r >>= function
 		| `Eof -> failwith "Unexpected end of file"
