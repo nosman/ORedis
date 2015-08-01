@@ -76,14 +76,8 @@ let resp_simple_string reader =
 (* Just use the read length function *)
 let resp_bulk_string reader =
 	read_length reader >>= fun len -> let len = Int64.to_int len in
-	match len with Some(x) ->
-			read_fixed_line reader x >>| fun result -> 
-				read_char reader >>= fun c1 -> read_char reader >>= fun c2 -> 
-					if c1 = '\r' && c2 = '\n' then
-						return result
-					else
-						failwith "Unexpected terminator"
-						| _ -> failwith "Wrong int conversion"
+	match len with Some(x) -> read_fixed_line reader x >>| fun result -> `String result
+			| _ -> failwith "Wrong int conversion"
 
 let resp_integer reader =
 	read_until_terminator reader (Buffer.create 8) >>| fun result -> `Number (Int64.of_string result)
@@ -94,7 +88,8 @@ let resp_error reader =
 let connection host port =
 	connect (to_host_and_port host port) 
 
-let rec resp_array r buffer =
+let rec resp_array r =
+	let buffer = Buffer.create 32 in
 	read_length r >>= fun len -> let len = Int64.to_int len in
 	match len with Some(x) ->
 		let rec helper reader lst count =
@@ -109,24 +104,33 @@ and parse_resp r buffer =
 		| `Ok(c) -> begin
 			match c with
 				| '+' -> resp_simple_string r
-				| '-' -> resp_integer r
-				| ':' -> failwith "Integer"
-				| '$' -> failwith "Bulk string"
-				| '*' -> failwith "Array"
+				| '-' -> resp_error r
+				| ':' -> resp_integer r
+				| '$' -> print_char c; resp_bulk_string r
+				| '*' -> resp_array r
 				| _ -> failwith "Wrong type"
 			end
+
+let print_array =
+	function `Array(lst) -> let rec helper lst = (
+		match lst with [] -> ()
+		| h::tl -> match h with `String(s) -> print_endline s; helper tl
+		| _ -> failwith "fuck"
+	) in helper lst
+	| _ -> failwith "Fuck"
 
 (* This will eventually take the type of command as well *)
 let get_command reader =
 	parse_resp reader (Buffer.create 32) >>| 
 	function
 	| `String(msg) -> print_endline msg
+	| `Array(lst) -> print_array (`Array lst)
 	| _ -> failwith "Not implemented"
 
 let main host port =
 	connection host port >>=
 	fun (socket, r, w) -> 
-		send_command w "PING";
+		send_command w "CLIENT LIST";
 		get_command r
 
 (*
