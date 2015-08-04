@@ -32,7 +32,7 @@ let read f reader =
 let read_char =
 	read Reader.read_char
 
-type resp_response =  [ `String of string | `Error of string | `Array of resp_response list | `Number of Int64.t ]
+type resp_response =  [ `String of string | `NilString | `Error of string | `Array of resp_response list | `NilArray | `Number of Int64.t ]
 
 let default_host = "localhost"
 
@@ -59,6 +59,10 @@ let write out_ch args =
       args >>= fun () ->
     IO.flush out_ch *)
 
+let nil_bulk_string = "$-1\r\n"
+
+let nil_array = "*-1\r\n"
+
 
 let to_bulk_string str =
 	let len = String.length str in
@@ -81,7 +85,8 @@ let to_resp_fmt com args =
 			helper args buffer)
 
 let write_command writer com args =
-	Writer.write writer (to_resp_fmt com args);
+	let resp = to_resp_fmt com args in
+	Writer.write writer resp;
 	Writer.flushed writer
 
 let print_msg msg = Out_channel.output_string stdout msg;
@@ -89,15 +94,13 @@ Out_channel.flush stdout
 
 let read_until_terminator reader buffer =
 	let rec loop () =
-	 Reader.read_char reader >>= function
-	 | `Eof -> failwith "Unexpected end of file"
-	 | `Ok('\r') -> Reader.read_char reader >>=  (function
-	 	| `Eof -> failwith "End of file"
-	 	| `Ok('\n') -> return (Buffer.contents buffer)
-	 	| `Ok(c) -> failwith "Illegal character in simple string"
-	 )
-	 | `Ok(c) -> Buffer.add_char buffer c; loop () in
-	 loop ()
+	 read_char reader >>= fun c1 ->
+	 		if c1 = '\r' then read_char reader >>| fun c2 ->
+	 			if c2 = '\n' then Buffer.contents buffer
+	 		else failwith "Unexpected Terminator"
+	 	else
+	 		(Buffer.add_char buffer c1; loop ()) in
+	 		loop ()
 
 let read_fixed_line reader length =
 	let buffer = Bytes.create length in
@@ -126,7 +129,10 @@ let resp_simple_string reader =
 (* Just use the read length function *)
 let resp_bulk_string reader =
 	read_length reader >>= fun len -> let len = Int64.to_int len in
-	match len with Some(x) -> read_fixed_line reader x >>| fun result -> `String result
+	match len with Some(x) -> ( if x > -1 then
+	read_fixed_line reader x >>| fun result -> `String result
+	else
+	if x = -1 then return `NilString else failwith "Wrong length field")
 			| _ -> failwith "Wrong int conversion"
 
 let resp_integer reader =
@@ -142,10 +148,13 @@ let rec resp_array r =
 	let buffer = Buffer.create 32 in
 	read_length r >>= fun len -> let len = Int64.to_int len in
 	match len with Some(x) ->
+	print_int x; print_endline "";
 		let rec helper reader lst count =
-			if count = 0 then return (`Array lst) else
+			if count > 0 then
 				parse_resp reader buffer >>= fun result ->
-					helper reader (result::lst) (count - 1) in
+					helper reader (result::lst) (count - 1) 
+			else if count = 0 then return (`Array lst) else if count = -1 then return (`NilArray) else failwith "Wrong length"
+				in
 					helper r [] x
 		| _ -> failwith "Wrong int conversion"
 and parse_resp r buffer =
@@ -156,7 +165,7 @@ and parse_resp r buffer =
 				| '+' -> resp_simple_string r
 				| '-' -> resp_error r
 				| ':' -> resp_integer r
-				| '$' -> print_char c; resp_bulk_string r
+				| '$' -> resp_bulk_string r
 				| '*' -> resp_array r
 				| _ -> failwith "Wrong type"
 			end
@@ -170,18 +179,20 @@ let print_array =
 	| _ -> failwith "Fuck"
 
 (* This will eventually take the type of command as well, as a function *)
-let get_command reader =
+let get_command reader = print_endline "_____________________";
 	parse_resp reader (Buffer.create 32) >>| 
 	function
+	| `NilString -> print_endline "Nil String"
 	| `String(msg) -> print_endline msg
 	| `Array(lst) -> print_array (`Array lst)
 	| `Number(num) -> (let num = Int64.to_int num in match num with
-		Some(x) -> print_int x
+		Some(x) -> print_int x; print_endline ""
 		| None -> failwith "Fuck"
 	)
 	| `Error(msg) -> print_endline msg
 	| _ -> failwith "Fuck Fuck"
 
+(* Switch arguments *)
 let send_command (writer, reader) comm args =
 	write_command writer comm args >>=
 	fun () -> get_command reader
@@ -189,7 +200,8 @@ let send_command (writer, reader) comm args =
 let main host port =
 	connection host port >>=
 	fun (socket, r, w) ->
-		send_command (w,r) "EXISTS" ["HELLO"]
+		send_command (w,r) "PING" [] >>=
+		fun _ -> send_command (w,r) "GET" ["Baz"]
 
 		
 
