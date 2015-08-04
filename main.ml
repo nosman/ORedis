@@ -32,8 +32,6 @@ let read f reader =
 let read_char =
 	read Reader.read_char
 
-type resp_response =  [ `String of string | `NilString | `Error of string | `Array of resp_response list | `NilArray | `Number of Int64.t ]
-
 let default_host = "localhost"
 
 let default_port = 6379
@@ -58,6 +56,8 @@ let write out_ch args =
       )
       args >>= fun () ->
     IO.flush out_ch *)
+
+type resp_response =  [ `String of string | `NilString | `Error of string | `Array of resp_response list | `NilArray | `Number of Int64.t ]
 
 let nil_bulk_string = "$-1\r\n"
 
@@ -145,19 +145,18 @@ let connection host port =
 	connect (to_host_and_port host port)
 
 let rec resp_array r =
-	let buffer = Buffer.create 32 in
 	read_length r >>= fun len -> let len = Int64.to_int len in
 	match len with Some(x) ->
 	print_int x; print_endline "";
 		let rec helper reader lst count =
 			if count > 0 then
-				parse_resp reader buffer >>= fun result ->
+				parse_resp reader >>= fun result ->
 					helper reader (result::lst) (count - 1) 
 			else if count = 0 then return (`Array lst) else if count = -1 then return (`NilArray) else failwith "Wrong length"
 				in
 					helper r [] x
 		| _ -> failwith "Wrong int conversion"
-and parse_resp r buffer =
+and parse_resp r = 
 	Reader.read_char r >>= function
 		| `Eof -> failwith "Unexpected end of file"
 		| `Ok(c) -> begin
@@ -178,9 +177,12 @@ let print_array =
 	) in helper lst
 	| _ -> failwith "Fuck"
 
+let get_command reader =
+	parse_resp reader 
+
 (* This will eventually take the type of command as well, as a function *)
-let get_command reader = print_endline "_____________________";
-	parse_resp reader (Buffer.create 32) >>| 
+let print_command reader = 
+	get_command reader >>| 
 	function
 	| `NilString -> print_endline "Nil String"
 	| `String(msg) -> print_endline msg
@@ -208,6 +210,3 @@ let main host port =
 let _ =
 	ignore (main default_host default_port);
 	never_returns (Scheduler.go ())
-(*
-	ignore (print_endline "foo");
-	never_returns (Scheduler.go ()) *)
