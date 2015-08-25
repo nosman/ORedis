@@ -15,6 +15,8 @@ val del : Writer.t * Reader.t -> string list -> int Deferred.t
 
 val exists : Writer.t * Reader.t -> string -> bool Deferred.t
 
+val expire : Writer.t * Reader.t -> string -> int -> bool Deferred.t
+
 (*type db = string
 
 val del 

@@ -201,21 +201,40 @@ let send_command (writer, reader) comm args =
 	write_command writer comm args >>=
 	fun () -> get_command reader
 
+let apply_to_resp_reply connection key args f =
+		f (send_command connection key args)
+
+(*
 let del (writer, reader) keys =
 	send_command (writer, reader) "DEL" keys >>| 
 		function
 		| `Number deletedKeys -> (match Int64.to_int deletedKeys
 			with Some(x) -> x
 			| None -> failwith "Int too big")
-		| _ -> failwith "Unexpected reply"
+		| _ -> failwith "Unexpected reply" *)
 
-let exists (writer, reader) key =
-	send_command (writer, reader) "exists" [key] >>|
-		function 
-		| `Number boolean -> if boolean = Int64.one then true
-			else if boolean = Int64.zero then false
-		else failwith "Unexpected number not"
-		| _ -> failwith "Unexpected reply"
+let bool_of_resp_num num = num >>| function
+	`Number boolean -> (if boolean = Int64.one then true
+		else if boolean = Int64.zero then false
+	else failwith "Unexpected number")
+	| _ -> failwith "Wrong resp value passed in"
+
+let int_of_resp_num num =
+	num >>| function
+	`Number num -> (match Int64.to_int num with
+		| Some(x) -> x
+		| None -> failwith "int64 to int conversion failed")
+	| _ -> failwith "Wrong resp value passed in"
+
+
+let del connection keys =
+	apply_to_resp_reply connection "DEL" keys int_of_resp_num
+
+let exists connection key =
+	apply_to_resp_reply connection "EXISTS" [key] bool_of_resp_num
+
+let expire connection key seconds =
+	apply_to_resp_reply connection "EXPIRE" [key; (string_of_int seconds)] bool_of_resp_num
 
 let main host port =
 	connection host port >>=
