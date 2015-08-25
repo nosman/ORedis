@@ -2,7 +2,7 @@ open Core.Std
 open Async.Std
 open Tcp
 
-
+(*Make higher order function to do a send_command and apply function to output*)
 (* Null handling for RESP replies *)
 (*
 let print_msg msg =
@@ -58,6 +58,8 @@ let write out_ch args =
     IO.flush out_ch *)
 
 type resp_response =  [ `String of string | `NilString | `Error of string | `Array of resp_response list | `NilArray | `Number of Int64.t ]
+
+type connection = Reader.t * Writer.t
 
 let nil_bulk_string = "$-1\r\n"
 
@@ -199,13 +201,28 @@ let send_command (writer, reader) comm args =
 	write_command writer comm args >>=
 	fun () -> get_command reader
 
+let del (writer, reader) keys =
+	send_command (writer, reader) "DEL" keys >>| 
+		function
+		| `Number deletedKeys -> (match Int64.to_int deletedKeys
+			with Some(x) -> x
+			| None -> failwith "Int too big")
+		| _ -> failwith "Unexpected reply"
+
+let exists (writer, reader) key =
+	send_command (writer, reader) "exists" [key] >>|
+		function 
+		| `Number boolean -> if boolean = Int64.one then true
+			else if boolean = Int64.zero then false
+		else failwith "Unexpected number not"
+		| _ -> failwith "Unexpected reply"
+
 let main host port =
 	connection host port >>=
 	fun (socket, r, w) ->
 		send_command (w,r) "PING" [] >>=
 		fun _ -> send_command (w,r) "GET" ["Baz"]
 
-		
 
 let _ =
 	ignore (main default_host default_port);
