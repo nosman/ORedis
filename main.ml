@@ -2,24 +2,9 @@ open Core.Std
 open Async.Std
 open Tcp
 
-(*Make higher order function to do a send_command and apply function to output*)
-(* Null handling for RESP replies *)
-(*
-let print_msg msg =
-	return msg >>| fun msg -> print_endline msg *)
-
-(*
-let get_resp_response reader buffer 
-'+'
-'-'
-':'
-'$'
-'*' *)
-
 (* Thread-safe reading and writing from sockets *)
 
 (* Connect should start the scheduler *)
-(*Scheduler.is_running () tells us if scheduler has been started *)
 
 
 exception UnexpectedEOF of string
@@ -36,7 +21,7 @@ let default_host = "localhost"
 
 let default_port = 6379
 
-type resp_response =  [ `String of string | `NilString | `Error of string | `Array of resp_response list | `NilArray | `Number of Int64.t ]
+type resp_response =  [ `String of string | `Nil | `Error of string | `Array of resp_response list | `Number of Int64.t ]
 
 type connection = Writer.t * Reader.t
 
@@ -113,7 +98,7 @@ let resp_bulk_string reader =
 	match len with Some(x) -> ( if x > -1 then
 	read_fixed_line reader x >>| fun result -> `String result
 	else
-	if x = -1 then return `NilString else failwith "Wrong length field")
+	if x = -1 then return `Nil else failwith "Wrong length field")
 			| _ -> failwith "Wrong int conversion"
 
 let resp_integer reader =
@@ -133,7 +118,7 @@ let rec resp_array r =
 			if count > 0 then
 				parse_resp reader >>= fun result ->
 					helper reader (result::lst) (count - 1) 
-			else if count = 0 then return (`Array lst) else if count = -1 then return (`NilArray) else failwith "Wrong length"
+			else if count = 0 then return (`Array lst) else if count = -1 then return (`Nil) else failwith "Wrong length"
 				in
 					helper r [] x
 		| _ -> failwith "Wrong int conversion"
@@ -165,7 +150,7 @@ let get_command reader =
 let print_command reader = 
 	get_command reader >>| 
 	function
-	| `NilString -> print_endline "Nil String"
+	| `Nil -> print_endline "Nil String"
 	| `String(msg) -> print_endline msg
 	| `Array(lst) -> print_array (`Array lst)
 	| `Number(num) -> (let num = Int64.to_int num in match num with
@@ -209,6 +194,10 @@ let string_of_simple_string str =
 	`String s -> s
 	| _ -> failwith "Conversion to string failed"
 
+let value_of_nil_or_resp conversion v = v >>= function
+	| `Nil -> return None
+	| `String _ | `Number _ | `Error _ | `Array _ -> conversion v >>| fun res -> Some res
+
 
 let del connection keys =
 	apply_to_resp_reply connection "DEL" keys int_of_resp_num
@@ -232,6 +221,15 @@ let migrate connection host port key destination ?(copy = false) ?(replace = fal
 
 let move connection key db =
 	apply_to_resp_reply connection "MIGRATE" [key;db] string_of_simple_string
+
+let object_refcount connection key =
+	apply_to_resp_reply connection "OBJECT" ["REFCOUNT";key] (value_of_nil_or_resp int_of_resp_num)
+
+let object_idletime connection key =
+	apply_to_resp_reply connection "OBJECT" ["IDLETIME";key] (value_of_nil_or_resp int_of_resp_num)
+
+let object_encoding connection key =
+	apply_to_resp_reply connection "OBJECT" ["ENCODING";key] (value_of_nil_or_resp string_of_simple_string)
 
 let main host port =
 	connection host port >>=

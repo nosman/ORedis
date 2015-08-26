@@ -26,6 +26,12 @@ val migrate : connection -> string -> int -> string -> string -> ?copy:bool -> ?
 
 val move : connection -> string -> string -> string Deferred.t
 
+val object_refcount: connection -> string -> int option Deferred.t
+
+val object_encoding: connection -> string -> string option Deferred.t
+
+val object_idletime: connection -> string -> int option Deferred.t
+
 (*type db = string
 
 val del 
