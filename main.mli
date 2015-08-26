@@ -48,13 +48,12 @@ val renamenx : connection -> string -> string -> bool Deferred.t
 
 val restore: connection -> ?replace:bool -> string -> int -> string -> string Deferred.t
 
-(*
 val sort :
     connection ->
     ?by:string ->
     ?limit:int * int ->
     ?get:'a list ->
-    ?order:[< `Asc | `Desc ] -> ?alpha:bool -> string -> string list Deferred.t *)
+    ?order:[< `Asc | `Desc ] -> ?alpha:bool -> string -> string list Deferred.t
 
 val ttl : connection -> string -> int Deferred.t
 

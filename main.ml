@@ -258,7 +258,20 @@ let restore connection ?(replace = false) key ttl serialized_value =
 		["REPLACE"] else [] in
 		apply_to_resp_reply connection "RESTORE" ([key; (string_of_int ttl); serialized_value]@options) string_of_resp_string
 
-(* let sort connection ?(by = "") ?(limit = (-1, -1)) ?(get = []) ?(order = `Asc) *)
+let sort connection ?by ?limit ?(get = []) ?order ?(alpha = false) key =
+	let args = match by with
+	| Some by -> ["BY"; by]
+	| None -> [] in
+	let args = match limit with
+	| Some (start, limit) -> (["LIMIT"; (string_of_int start); (string_of_int limit)]@args)
+	| None -> args in
+	let args = match order with
+	| Some `Asc -> "ASC"::args
+	| Some `Desc -> "DESC"::args
+	| None -> args in
+	let args = if alpha then
+	"ALPHA"::args else args in
+	apply_to_resp_reply connection "SORT" args string_list_of_array
 
 let ttl connection key =
 	apply_to_resp_reply connection "TTL" [key] int_of_resp_num
@@ -272,9 +285,8 @@ let main host port =
 	fun (socket, r, w) ->
 		send_command (w,r) "PING" [] >>=
 		fun x -> return (print_command x) >>=
-
 		fun _ -> send_command (w,r) "GET" ["Baz"]
-		>>= fun x-> return (print_command x)
+		>>= fun x -> return (print_command x)
 
 let _ =
 	ignore (main default_host default_port);
