@@ -6,6 +6,8 @@ open Tcp
 
 (* Connect should start the scheduler *)
 
+(*Make one helper further? *)
+
 
 exception UnexpectedEOF of string
 
@@ -189,7 +191,7 @@ let int_of_resp_num num =
 		| None -> failwith "int64 to int conversion failed")
 	| _ -> failwith "Wrong resp value passed in"
 
-let string_of_simple_string str =
+let string_of_resp_string str =
 	str >>| function
 	`String s -> s
 	| _ -> failwith "Conversion to string failed"
@@ -201,6 +203,9 @@ let value_of_nil_or_resp conversion v = v >>= function
 
 let del connection keys =
 	apply_to_resp_reply connection "DEL" keys int_of_resp_num
+
+let dump connection key =
+	apply_to_resp_reply connection "DUMP" [key] string_of_resp_string
 
 let exists connection key =
 	apply_to_resp_reply connection "EXISTS" [key] bool_of_resp_num
@@ -217,10 +222,10 @@ let keys connection pattern =
 let migrate connection host port key destination ?(copy = false) ?(replace = false) timeout =
 	let optionals = if copy then ["COPY"] else [] in
 		let optionals = if replace then "REPLACE"::optionals else optionals in
-	apply_to_resp_reply connection "MIGRATE" ([ host; (string_of_int port); key; destination; (string_of_int timeout)]@optionals) string_of_simple_string
+	apply_to_resp_reply connection "MIGRATE" ([ host; (string_of_int port); key; destination; (string_of_int timeout)]@optionals) string_of_resp_string
 
 let move connection key db =
-	apply_to_resp_reply connection "MIGRATE" [key;db] string_of_simple_string
+	apply_to_resp_reply connection "MIGRATE" [key;db] string_of_resp_string
 
 let object_refcount connection key =
 	apply_to_resp_reply connection "OBJECT" ["REFCOUNT";key] (value_of_nil_or_resp int_of_resp_num)
@@ -229,7 +234,42 @@ let object_idletime connection key =
 	apply_to_resp_reply connection "OBJECT" ["IDLETIME";key] (value_of_nil_or_resp int_of_resp_num)
 
 let object_encoding connection key =
-	apply_to_resp_reply connection "OBJECT" ["ENCODING";key] (value_of_nil_or_resp string_of_simple_string)
+	apply_to_resp_reply connection "OBJECT" ["ENCODING";key] (value_of_nil_or_resp string_of_resp_string)
+
+let persist connection key =
+	apply_to_resp_reply connection "PERSIST" [key] bool_of_resp_num
+
+let pexpire connection key millis =
+	apply_to_resp_reply connection "PEXPIRE" [key; (string_of_int millis)] bool_of_resp_num
+
+let pexpireat connection key millis =
+	apply_to_resp_reply connection "PEXPIREAT" [key; (string_of_int millis)] bool_of_resp_num
+
+let pttl connection key =
+	apply_to_resp_reply connection "PTTL" [key] int_of_resp_num
+
+let randomkey connection =
+	apply_to_resp_reply connection "RANDOMKEY" [] (value_of_nil_or_resp string_of_resp_string)
+
+let rename connection orig_key dest_key =
+	apply_to_resp_reply connection "RENAME" [orig_key; dest_key] string_of_resp_string
+
+let renamenx connection orig_key dest_key =
+	apply_to_resp_reply connection "RENAMEX" [orig_key; dest_key] bool_of_resp_num
+
+let restore connection ?(replace = false) key ttl serialized_value =
+	let options = if replace then
+		["REPLACE"] else [] in
+		apply_to_resp_reply connection "RESTORE" ([key; (string_of_int ttl); serialized_value]@options) string_of_resp_string
+
+(* let sort connection ?(by = "") ?(limit = (-1, -1)) ?(get = []) ?(order = `Asc) *)
+
+let ttl connection key =
+	apply_to_resp_reply connection "TTL" [key] int_of_resp_num
+
+let type_ connection key =
+	apply_to_resp_reply connection "TYPE" [key] string_of_resp_string
+
 
 let main host port =
 	connection host port >>=
