@@ -6,6 +6,8 @@ open Tcp
 
 (* Connect should start the scheduler *)
 
+(* Replace failwiths with async error handling *)
+
 (*Make one helper further? *)
 
 
@@ -30,6 +32,9 @@ type connection = Writer.t * Reader.t
 let nil_bulk_string = "$-1\r\n"
 
 let nil_array = "*-1\r\n"
+
+let print_string str =
+	return (print_endline str)
 
 
 let to_bulk_string str =
@@ -73,18 +78,12 @@ let read_until_terminator reader buffer =
 let read_fixed_line reader length =
 	let buffer = Bytes.create length in
 		Reader.really_read ~len:length reader buffer >>=
-			function 
-			| `Eof(len) -> failwith "Unexpected end of file"
-			| `Ok -> (Reader.read_char reader >>= function
-				| `Eof -> failwith "blah"
-				| `Ok(c) -> (Reader.read_char reader >>= function
-					| `Eof -> failwith "blah"
-					| `Ok(c') -> if c = '\r' && c' = '\n' then 
+		function
+		| `Eof(len) -> failwith "Unexpected end of file"
+		| `Ok -> read_char reader >>= fun c -> read_char reader >>= fun c' -> if c = '\r' && c' = '\n' then 
 									return (Bytes.unsafe_to_string buffer)
 									else
 									failwith "Blah"
-				)
-			)
 
 let read_length reader =
 	read_until_terminator reader (Buffer.create 8) >>| fun result -> Int64.of_string result
@@ -137,22 +136,14 @@ and parse_resp r =
 				| _ -> failwith "Wrong type"
 			end
 
-let print_array =
-	function `Array(lst) -> let rec helper lst = (
-		match lst with [] -> ()
-		| h::tl -> match h with `String(s) -> print_endline s; helper tl
-		| _ -> failwith "fuck"
-	) in helper lst
-	| _ -> failwith "Fuck"
-
 let get_command reader =
 	parse_resp reader 
 
 (* This will eventually take the type of command as well, as a function *)
-let print_command reader = 
+(* let print_command reader = 
 	get_command reader >>| 
 	function
-	| `Nil -> print_endline "Nil String"
+	| `Nil -> print_endline "Nil"
 	| `String(msg) -> print_endline msg
 	| `Array(lst) -> print_array (`Array lst)
 	| `Number(num) -> (let num = Int64.to_int num in match num with
@@ -160,7 +151,45 @@ let print_command reader =
 		| None -> failwith "Fuck"
 	)
 	| `Error(msg) -> print_endline msg
-	| _ -> failwith "Fuck Fuck"
+	| _ -> failwith "Fuck Fuck" *)
+(*let rec print_array =
+	function `Array(lst) -> let rec helper lst = (
+		match lst with [] -> return ()
+		| h::tl -> print_command h >>= fun _ -> helper tl
+		| _ -> failwith "fuck"
+	) in helper lst
+	| _ -> failwith "Fuck" and
+print_command command =
+	command >>=
+	function
+	| `Nil -> print_string "Nil"
+	| `String(msg) -> print_string msg
+	| `Array(lst) -> print_array (`Array lst)
+	| `Number(num) -> (let num = Int64.to_int num in match num with
+		Some(x) -> return (print_int x) >>= fun _ -> print_string ""
+		| None -> failwith "Fuck"
+	)
+	| `Error(msg) -> print_string msg
+	| _ -> failwith "Fuck Fuck" *)
+
+let rec print_command command =
+	match command with
+		| `Nil -> print_endline "Nil"
+		| `String(msg) -> print_endline msg
+		| `Array(lst) -> print_array (`Array lst)
+		| `Number(num) -> (let num = Int64.to_int num in match num with
+			Some(x) -> print_int x; print_endline ""
+		| None -> failwith "Fuck"
+	)
+	| `Error(msg) -> print_endline msg
+and
+print_array = function `Array lst ->
+	let rec helper lst =
+		match lst with
+		| [] -> ()
+		| h::tl -> print_command h; helper lst
+	in
+	helper lst
 
 let string_list_of_array arr =
 	arr >>| function `Array a -> 
@@ -275,8 +304,10 @@ let main host port =
 	connection host port >>=
 	fun (socket, r, w) ->
 		send_command (w,r) "PING" [] >>=
-		fun _ -> send_command (w,r) "GET" ["Baz"]
+		fun x -> return (print_command x) >>=
 
+		fun _ -> send_command (w,r) "GET" ["Baz"]
+		>>= fun x-> return (print_command x)
 
 let _ =
 	ignore (main default_host default_port);
