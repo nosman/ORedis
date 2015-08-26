@@ -11,11 +11,20 @@ val parse_resp : Reader.t -> resp_response Deferred.t
 
 val send_command : Writer.t * Reader.t -> string -> string list -> resp_response Deferred.t
 
-val del : Writer.t * Reader.t -> string list -> int Deferred.t
+val del : connection -> string list -> int Deferred.t
 
-val exists : Writer.t * Reader.t -> string -> bool Deferred.t
+val exists : connection -> string -> bool Deferred.t
 
-val expire : Writer.t * Reader.t -> string -> int -> bool Deferred.t
+val expire : connection -> string -> int -> bool Deferred.t
+
+val expireat : connection -> string -> float -> bool Deferred.t
+
+val keys : connection  -> string -> string list Deferred.t
+
+(*val x : ?y:'a*)
+val migrate : connection -> string -> int -> string -> string -> ?copy:bool -> ?replace:bool -> int -> string Deferred.t
+
+val move : connection -> string -> string -> string Deferred.t
 
 (*type db = string
 

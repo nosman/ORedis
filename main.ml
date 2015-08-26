@@ -36,30 +36,9 @@ let default_host = "localhost"
 
 let default_port = 6379
 
-(*
-let send writer args =
-	let num_args = List.length args in
-*)
-
-(*
-let write out_ch args =
-    let num_args = List.length args in
-    IO.output_string out_ch (Printf.sprintf "*%d" num_args) >>= fun () ->
-    IO.output_string out_ch "\r\n" >>= fun () ->
-    IO.iter
-      (fun arg ->
-        let length = String.length arg in
-        IO.output_string out_ch (Printf.sprintf "$%d" length) >>= fun () ->
-        IO.output_string out_ch "\r\n" >>= fun () ->
-        IO.output_string out_ch arg >>= fun () ->
-        IO.output_string out_ch "\r\n"
-      )
-      args >>= fun () ->
-    IO.flush out_ch *)
-
 type resp_response =  [ `String of string | `NilString | `Error of string | `Array of resp_response list | `NilArray | `Number of Int64.t ]
 
-type connection = Reader.t * Writer.t
+type connection = Writer.t * Reader.t
 
 let nil_bulk_string = "$-1\r\n"
 
@@ -196,6 +175,14 @@ let print_command reader =
 	| `Error(msg) -> print_endline msg
 	| _ -> failwith "Fuck Fuck"
 
+let string_list_of_array arr =
+	arr >>| function `Array a -> 
+		List.map a (fun x -> match x with
+			| `String str -> str
+			| _ -> failwith "tried to convert wrong resp type into string")
+		| _ -> failwith "tried to convert wrong resp type into list"
+
+
 (* Switch arguments *)
 let send_command (writer, reader) comm args =
 	write_command writer comm args >>=
@@ -203,15 +190,6 @@ let send_command (writer, reader) comm args =
 
 let apply_to_resp_reply connection key args f =
 		f (send_command connection key args)
-
-(*
-let del (writer, reader) keys =
-	send_command (writer, reader) "DEL" keys >>| 
-		function
-		| `Number deletedKeys -> (match Int64.to_int deletedKeys
-			with Some(x) -> x
-			| None -> failwith "Int too big")
-		| _ -> failwith "Unexpected reply" *)
 
 let bool_of_resp_num num = num >>| function
 	`Number boolean -> (if boolean = Int64.one then true
@@ -226,6 +204,11 @@ let int_of_resp_num num =
 		| None -> failwith "int64 to int conversion failed")
 	| _ -> failwith "Wrong resp value passed in"
 
+let string_of_simple_string str =
+	str >>| function
+	`String s -> s
+	| _ -> failwith "Conversion to string failed"
+
 
 let del connection keys =
 	apply_to_resp_reply connection "DEL" keys int_of_resp_num
@@ -235,6 +218,20 @@ let exists connection key =
 
 let expire connection key seconds =
 	apply_to_resp_reply connection "EXPIRE" [key; (string_of_int seconds)] bool_of_resp_num
+
+let expireat connection key timestamp =
+	apply_to_resp_reply connection "EXPIREAT" [key; (Float.to_string timestamp)] bool_of_resp_num
+
+let keys connection pattern =
+	apply_to_resp_reply connection "KEYS" [pattern] string_list_of_array
+
+let migrate connection host port key destination ?(copy = false) ?(replace = false) timeout =
+	let optionals = if copy then ["COPY"] else [] in
+		let optionals = if replace then "REPLACE"::optionals else optionals in
+	apply_to_resp_reply connection "MIGRATE" ([ host; (string_of_int port); key; destination; (string_of_int timeout)]@optionals) string_of_simple_string
+
+let move connection key db =
+	apply_to_resp_reply connection "MIGRATE" [key;db] string_of_simple_string
 
 let main host port =
 	connection host port >>=
