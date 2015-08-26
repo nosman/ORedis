@@ -139,39 +139,6 @@ and parse_resp r =
 let get_command reader =
 	parse_resp reader 
 
-(* This will eventually take the type of command as well, as a function *)
-(* let print_command reader = 
-	get_command reader >>| 
-	function
-	| `Nil -> print_endline "Nil"
-	| `String(msg) -> print_endline msg
-	| `Array(lst) -> print_array (`Array lst)
-	| `Number(num) -> (let num = Int64.to_int num in match num with
-		Some(x) -> print_int x; print_endline ""
-		| None -> failwith "Fuck"
-	)
-	| `Error(msg) -> print_endline msg
-	| _ -> failwith "Fuck Fuck" *)
-(*let rec print_array =
-	function `Array(lst) -> let rec helper lst = (
-		match lst with [] -> return ()
-		| h::tl -> print_command h >>= fun _ -> helper tl
-		| _ -> failwith "fuck"
-	) in helper lst
-	| _ -> failwith "Fuck" and
-print_command command =
-	command >>=
-	function
-	| `Nil -> print_string "Nil"
-	| `String(msg) -> print_string msg
-	| `Array(lst) -> print_array (`Array lst)
-	| `Number(num) -> (let num = Int64.to_int num in match num with
-		Some(x) -> return (print_int x) >>= fun _ -> print_string ""
-		| None -> failwith "Fuck"
-	)
-	| `Error(msg) -> print_string msg
-	| _ -> failwith "Fuck Fuck" *)
-
 let rec print_command command =
 	match command with
 		| `Nil -> print_endline "Nil"
