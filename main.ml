@@ -62,9 +62,6 @@ let write_command writer com args =
 	Writer.write writer resp;
 	Writer.flushed writer
 
-let print_msg msg = Out_channel.output_string stdout msg;
-Out_channel.flush stdout
-
 let read_until_terminator reader buffer =
 	let rec loop () =
 	 read_char reader >>= fun c1 ->
@@ -75,13 +72,14 @@ let read_until_terminator reader buffer =
 	 		(Buffer.add_char buffer c1; loop ()) in
 	 		loop ()
 
+(*This breaks with -safe-string on, because of Reader.really_read. how to modify *)
 let read_fixed_line reader length =
 	let buffer = Bytes.create length in
 		Reader.really_read ~len:length reader buffer >>=
 		function
 		| `Eof(len) -> failwith "Unexpected end of file"
 		| `Ok -> read_char reader >>= fun c -> read_char reader >>= fun c' -> if c = '\r' && c' = '\n' then 
-									return (Bytes.unsafe_to_string buffer)
+									return buffer
 									else
 									failwith "Blah"
 
@@ -288,6 +286,7 @@ let main host port =
 		fun _ -> send_command (w,r) "GET" ["Baz"]
 		>>= fun x -> return (print_command x)
 
+(*Make this into an init method*)
 let _ =
 	ignore (main default_host default_port);
 	never_returns (Scheduler.go ())
