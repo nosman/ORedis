@@ -136,6 +136,7 @@ let string_list_of_array arr =
 			| _ -> failwith "tried to convert wrong resp type into string")
 		| _ -> failwith "tried to convert wrong resp type into list"
 
+(* connection string string list (resp_reply -> something) *)
 let apply_to_resp_reply connection key args f =
 		f (send_command connection key args)
 
