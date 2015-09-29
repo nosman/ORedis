@@ -18,13 +18,23 @@ module type IO = sig
 
 	val write : ?pos:int -> ?len:int -> writer -> string -> unit
 	val flushed : writer -> unit t
+	val connect : string -> int -> (reader * writer) t
 
 end
-
+	
 module type Api = sig
 	module I : IO
 
 	type resp_response =  [ `String of string | `Nil | `Error of string | `Array of resp_response list | `Number of Int64.t ]
+
+	type fd = I.fd
+	type reader = I.reader
+	type writer = I.writer
+	val connect : string -> int -> (reader * writer) I.t
+	(*Option to disconnect? *)
+	(*Take an Api module. Provide functions that let the user connect and start the actual client. 
+	Add *)
+
 
 	val parse_resp : I.reader -> resp_response I.t
 

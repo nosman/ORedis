@@ -19,6 +19,11 @@ module Async_io : S.IO = struct
 
 	let read_char = Reader.read_char
 
+	let connect host port =
+		Tcp.connect (Tcp.to_host_and_port host port) >>|
+		fun (_, reader, writer) ->
+			(reader, writer)
+
 	(*
 
 type 'a read_result = [ `Ok of 'a | `Eof ]

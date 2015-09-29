@@ -6,9 +6,16 @@ module Make(I : IO) : Api = struct
 	open I
 	type 'a t = 'a I.t
 
+	type fd = I.fd
+	type reader = I.reader
+	type writer = I.writer
+	
+
 	type resp_response =  [ `String of string | `Nil | `Error of string | `Array of resp_response list | `Number of Int64.t ]
 
 	exception UnexpectedEOF of string
+
+	let connect host port = I.connect host port
 
 	let read f reader =
 	f reader >>= function
