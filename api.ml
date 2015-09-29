@@ -136,6 +136,25 @@ let send_command (writer, reader) comm args =
 	write_command writer comm args >>=
 	fun () -> get_command reader
 
+let rec print_command command =
+	match command with
+		| `Nil -> print_endline "Nil"
+		| `String(msg) -> print_endline msg
+		| `Array(lst) -> print_array (`Array lst)
+		| `Number(num) -> (let num = Int64.to_int num in match num with
+			Some(x) -> print_int x; print_endline ""
+		| None -> failwith "Fuck"
+	)
+	| `Error(msg) -> print_endline msg
+and
+print_array = function `Array lst ->
+	let rec helper lst =
+		match lst with
+		| [] -> ()
+		| h::tl -> print_command h; helper lst
+	in
+	helper lst
+
 let string_list_of_array arr =
 	arr >>| function `Array a -> 
 		List.map a (fun x -> match x with
@@ -250,5 +269,15 @@ let ttl connection key =
 
 let type_ connection key =
 	apply_to_resp_reply connection "TYPE" [key] string_of_resp_string
+
+
+let main host port =
+	connect host port >>=
+	fun (r, w) ->
+		send_command (w,r) "PING" [] >>=
+		fun x -> I.return (print_command x) >>=
+		fun _ -> send_command (w,r) "GET" ["Baz"]
+		>>= fun x -> I.return (print_command x)
+
 
 end

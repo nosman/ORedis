@@ -40,6 +40,8 @@ module type Api = sig
 
 	val send_command : I.writer * I.reader -> string -> string list -> resp_response I.t
 
+	val print_command : resp_response -> unit
+
 	val del : I.writer * I.reader -> string list -> int I.t
 
 	val dump : I.writer * I.reader -> string -> string I.t
@@ -85,5 +87,7 @@ module type Api = sig
 	val ttl : I.writer * I.reader -> string -> int I.t
 
 	val type_ : I.writer * I.reader -> string -> string I.t
+
+	val main : string -> int -> unit I.t
 
 end
