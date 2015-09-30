@@ -86,7 +86,7 @@ module type Api = sig
 	  I.writer * I.reader ->
 	  ?by:string -> ?limit:int * int -> ?get:'a list -> ?order:[< `Asc | `Desc ] -> ?alpha:bool -> 'b -> string list I.t
 
-	val set : I.writer * I.reader -> string -> string -> string I.t
+	val set : I.writer * I.reader -> ?ex:int -> ?px:int -> ?nx_or_xx:[< `NX | `XX ] -> string -> string -> string I.t
 
 	val ttl : I.writer * I.reader -> string -> int I.t
 

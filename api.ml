@@ -251,15 +251,31 @@ let restore connection ?(replace = false) key ttl serialized_value =
 		["REPLACE"] else [] in
 		apply_to_resp_reply connection "RESTORE" ([key; (string_of_int ttl); serialized_value]@options) string_of_resp_string
 
-let set connection key value =
-	apply_to_resp_reply connection "SET" [key; value] string_of_resp_string
+let set connection ?ex ?px ?nx_or_xx key value =
+	(* Unwrap optional args *)
+	let args = match ex with
+	| Some(expiration_secs) -> ["EX"; string_of_int expiration_secs]
+	| None -> [] in
+	let args = match px with
+	| Some(expiration_msecs) -> ("PX"::(string_of_int expiration_msecs)::args)
+	| None -> args in
+	let args = match nx_or_xx with
+	| Some(nx_or_xx) -> begin
+		match nx_or_xx with 
+		| `NX -> ("NX"::args)
+		| `XX -> ("XX"::args)
+	end
+	| None -> args
+in
+	apply_to_resp_reply connection "SET" (key::value::(List.rev args)) string_of_resp_string
 
 let sort connection ?by ?limit ?(get = []) ?order ?(alpha = false) key =
+	(*Make a function to unwrap all the optional args *)
 	let args = match by with
 	| Some by -> ["BY"; by]
 	| None -> [] in
 	let args = match limit with
-	| Some (start, limit) -> (["LIMIT"; (string_of_int start); (string_of_int limit)]@args)
+	| Some (start, limit) -> ("LIMIT"::(string_of_int start)::(string_of_int limit)::args)
 	| None -> args in
 	let args = match order with
 	| Some `Asc -> "ASC"::args
