@@ -38,6 +38,8 @@ let nil_array = "*-1\r\n"
 let print_string str =
 	return (print_endline str)
 
+let start = I.start
+
 
 let to_bulk_string str =
 	let len = String.length str in
@@ -270,7 +272,6 @@ let ttl connection key =
 let type_ connection key =
 	apply_to_resp_reply connection "TYPE" [key] string_of_resp_string
 
-
 let main host port =
 	connect host port >>=
 	fun (r, w) ->
@@ -278,6 +279,5 @@ let main host port =
 		fun x -> I.return (print_command x) >>=
 		fun _ -> send_command (w,r) "GET" ["Baz"]
 		>>= fun x -> I.return (print_command x)
-
 
 end

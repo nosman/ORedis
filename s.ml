@@ -20,6 +20,8 @@ module type IO = sig
 	val flushed : writer -> unit t
 	val connect : string -> int -> (reader * writer) t
 
+	val start : ?raise_unhandled_exn:bool -> unit -> never_returns
+
 end
 	
 module type Api = sig
@@ -89,5 +91,7 @@ module type Api = sig
 	val type_ : I.writer * I.reader -> string -> string I.t
 
 	val main : string -> int -> unit I.t
+
+	val start : ?raise_unhandled_exn:bool -> unit -> never_returns
 
 end
