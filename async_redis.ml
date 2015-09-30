@@ -25,5 +25,6 @@ module Async_io : S.IO = struct
 		Tcp.connect (Tcp.to_host_and_port host port) >>|
 		fun (_, reader, writer) ->
 			(reader, writer)
-
 end
+
+module Async_Redis = Api.Make(Async_io)

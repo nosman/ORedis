@@ -182,13 +182,16 @@ let int_of_resp_num num =
 	| _ -> failwith "Wrong resp value passed in"
 
 let string_of_resp_string str =
-	str >>| function
+	str >>| fun res -> match res with
 	`String s -> s
 	| _ -> failwith "Conversion to string failed"
 
 let value_of_nil_or_resp conversion v = v >>= function
 	| `Nil -> return None
 	| `String _ | `Number _ | `Error _ | `Array _ -> conversion v >>| fun res -> Some res
+
+let get connection key =
+	apply_to_resp_reply connection "GET" [key] string_of_resp_string
 
 let del connection keys =
 	apply_to_resp_reply connection "DEL" keys int_of_resp_num
