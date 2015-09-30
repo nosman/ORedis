@@ -251,6 +251,9 @@ let restore connection ?(replace = false) key ttl serialized_value =
 		["REPLACE"] else [] in
 		apply_to_resp_reply connection "RESTORE" ([key; (string_of_int ttl); serialized_value]@options) string_of_resp_string
 
+let set connection key value =
+	apply_to_resp_reply connection "SET" [key; value] string_of_resp_string
+
 let sort connection ?by ?limit ?(get = []) ?order ?(alpha = false) key =
 	let args = match by with
 	| Some by -> ["BY"; by]
