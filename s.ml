@@ -114,6 +114,12 @@ module type Api = sig
 
 	val hget : I.writer * I.reader -> string -> string -> string option I.t
 
+	val hdel : I.writer * I.reader -> string -> string -> string list -> bool I.t
+
+	val lpush :  I.writer * I.reader -> string -> string -> string list -> int I.t
+
+	val ltrim : I.writer * I.reader -> string -> int -> int -> string I.t
+
 	(*SortedSet operations *)
 
 end

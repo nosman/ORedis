@@ -322,6 +322,25 @@ let hmset connection key (field, value) field_value_list =
 let hget connection key field =
 	apply_to_resp_reply connection "HGET" [key;field] option_of_resp_string
 
+let hdel connection key field field_lst =
+	apply_to_resp_reply connection "HDEL" (key::field::field_lst) bool_of_resp_num
+
+let zadd connection key ?nx_or_xx ?(ch = false) ?incr score member score_member_lst =
+	failwith "todo"
+
+let lpush connection key value value_lst =
+	apply_to_resp_reply connection "LPUSH" (key::value::value_lst) int_of_resp_num
+
+let ltrim connection key start stop =
+	apply_to_resp_reply connection "LTRIM" [key;string_of_int start; string_of_int stop] string_of_resp_string
+
+(* let zrange connection key start stop *)
+(* 	lpush 
+	hgetall
+	zadd
+
+*)
+
 
 
 end
