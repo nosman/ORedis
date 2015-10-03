@@ -1,5 +1,7 @@
 open Core.Std
 
+(* Make IO connection type abstract *)
+
 module type IO = sig
 	type 'a t
 	include Monad.Infix with type 'a t := 'a t
@@ -86,7 +88,7 @@ module type Api = sig
 
 	val sort :
 	  I.writer * I.reader ->
-	  ?by:string -> ?limit:int * int -> ?get:'a list -> ?order:[< `Asc | `Desc ] -> ?alpha:bool -> 'b -> string list I.t
+	  ?by:string -> ?limit:int * int -> ?get:'a list -> ?order:[< `Asc | `Desc ] -> ?alpha:bool -> string -> string list I.t
 
 	val set : I.writer * I.reader -> ?ex:int -> ?px:int -> ?nx_or_xx:[< `NX | `XX ] -> string -> string -> string I.t
 
@@ -94,8 +96,24 @@ module type Api = sig
 
 	val type_ : I.writer * I.reader -> string -> string I.t
 
-	val main : string -> int -> unit I.t
+	(*val main : string -> int -> unit I.t *)
 
 	val start : ?raise_unhandled_exn:bool -> unit -> never_returns
+
+	(*Commands used in tutorial *)
+
+	(*List operations*)
+
+	val blpop : I.writer * I.reader -> string -> string list -> int -> (string * string) option I.t
+
+	val incr : I.writer * I.reader -> string -> int I.t
+
+	val hset : I.writer * I.reader -> string -> (string * string) -> bool I.t
+
+	val hmset : I.writer * I.reader -> string -> (string * string) -> (string * string) list -> string I.t
+
+	val hget : I.writer * I.reader -> string -> string -> string option I.t
+
+	(*SortedSet operations *)
 
 end

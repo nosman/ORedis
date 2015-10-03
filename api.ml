@@ -35,9 +35,6 @@ let nil_bulk_string = "$-1\r\n"
 
 let nil_array = "*-1\r\n"
 
-let print_string str =
-	return (print_endline str)
-
 let start = I.start
 
 
@@ -81,7 +78,7 @@ let read_fixed_line reader length =
 	let buffer = Bytes.create length in
 		really_read ~len:length reader buffer >>=
 		function
-		| `Eof(len) -> failwith "Unexpected end of file"
+		| `Eof(len) -> failwith ("Unexpected end of file, only read " ^ (string_of_int len) ^ " bytes")
 		| `Ok -> read_char reader >>= fun c -> read_char reader >>= fun c' -> if c = '\r' && c' = '\n' then 
 									return buffer
 									else
@@ -113,7 +110,6 @@ let resp_error reader =
 let rec resp_array r =
 	read_length r >>= fun len -> let len = Int64.to_int len in
 	match len with Some(x) ->
-	print_int x; print_endline "";
 		let rec helper reader lst count =
 			if count > 0 then
 				parse_resp reader >>= fun result ->
@@ -153,9 +149,13 @@ print_array = function `Array lst ->
 	let rec helper lst =
 		match lst with
 		| [] -> ()
-		| h::tl -> print_command h; helper lst
+		| h::tl -> print_command h; helper tl
 	in
 	helper lst
+
+let string_of_resp_str =
+	function `String str -> str
+	| _ -> failwith "not a resp string"
 
 let string_list_of_array arr =
 	arr >>| function `Array a -> 
@@ -185,6 +185,18 @@ let string_of_resp_string str =
 	str >>| fun res -> match res with
 	`String s -> s
 	| _ -> failwith "Conversion to string failed"
+
+let option_of_resp_string str =
+	str >>| fun res -> match res with
+	`String s -> Some s
+	| `Nil -> None
+	| _ -> failwith "Conversion to string failed"
+
+let tuple_of_resp_array arr =
+	arr >>| fun res ->
+	match res with
+	| `Array (x::x'::[]) -> Some (string_of_resp_str x, string_of_resp_str x')
+	| _ -> None
 
 let value_of_nil_or_resp conversion v = v >>= function
 	| `Nil -> return None
@@ -286,7 +298,7 @@ let sort connection ?by ?limit ?(get = []) ?order ?(alpha = false) key =
 	| None -> args in
 	let args = if alpha then
 	"ALPHA"::args else args in
-	apply_to_resp_reply connection "SORT" args string_list_of_array
+	apply_to_resp_reply connection "SORT" (key::args) string_list_of_array
 
 let ttl connection key =
 	apply_to_resp_reply connection "TTL" [key] int_of_resp_num
@@ -294,12 +306,22 @@ let ttl connection key =
 let type_ connection key =
 	apply_to_resp_reply connection "TYPE" [key] string_of_resp_string
 
-let main host port =
-	connect host port >>=
-	fun (r, w) ->
-		send_command (w,r) "PING" [] >>=
-		fun x -> I.return (print_command x) >>=
-		fun _ -> send_command (w,r) "GET" ["Baz"]
-		>>= fun x -> I.return (print_command x)
+let blpop connection lst lsts timeout =
+	apply_to_resp_reply connection "BLPOP" (lst::lsts@[string_of_int timeout]) tuple_of_resp_array
+
+let incr connection key =
+	apply_to_resp_reply connection "INCR" [key] int_of_resp_num
+
+let hset connection key (field, value) =
+	apply_to_resp_reply connection "HSET" [key;field;value] bool_of_resp_num
+
+let hmset connection key (field, value) field_value_list =
+	let args = List.fold_left field_value_list ~init:[value;field;key] ~f:(fun acc (key, value) -> key::value::acc) in
+	apply_to_resp_reply connection "HMSET" (List.rev args) string_of_resp_string
+
+let hget connection key field =
+	apply_to_resp_reply connection "HGET" [key;field] option_of_resp_string
+
+
 
 end
