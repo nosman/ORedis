@@ -114,6 +114,8 @@ module type Api = sig
 
 	val hget : I.writer * I.reader -> string -> string -> string option I.t
 
+	val hgetall : I.writer * I.reader -> string -> (string * string) list I.t
+
 	val hdel : I.writer * I.reader -> string -> string -> string list -> bool I.t
 
 	val lpush :  I.writer * I.reader -> string -> string -> string list -> int I.t

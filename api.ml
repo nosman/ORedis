@@ -198,6 +198,18 @@ let tuple_of_resp_array arr =
 	| `Array (x::x'::[]) -> Some (string_of_resp_str x, string_of_resp_str x')
 	| _ -> None
 
+let tuple_list_of_resp_array arr =
+	arr >>| fun res ->
+	match res with
+	`Array a -> let (opt, result) = List.fold_left a ~init:(None, []) ~f:(fun (prev, lst) elem -> 
+		match prev with Some s -> (None, (s, string_of_resp_str elem)::lst)
+		| None -> (Some(string_of_resp_str elem), lst)
+	) in (
+		match opt with None -> result
+		| Some _ -> failwith "List had odd number of elements, could not convert to tuple"
+	)
+	| _ -> failwith "Conversion to array failed"
+
 let value_of_nil_or_resp conversion v = v >>= function
 	| `Nil -> return None
 	| `String _ | `Number _ | `Error _ | `Array _ -> conversion v >>| fun res -> Some res
@@ -334,11 +346,12 @@ let lpush connection key value value_lst =
 let ltrim connection key start stop =
 	apply_to_resp_reply connection "LTRIM" [key;string_of_int start; string_of_int stop] string_of_resp_string
 
-(* let zrange connection key start stop *)
-(* 	lpush 
+let hgetall connection key =
+	apply_to_resp_reply connection "HGETALL" [key] tuple_list_of_resp_array
+
+(* let zrange connection key start stop
 	hgetall
 	zadd
-
 *)
 
 
