@@ -369,10 +369,5 @@ let zrange connection key start stop ?(withscores = false) =
 	let args = if withscores then [key;string_of_int start; string_of_int stop; "WITHSCORES"] else
 	[key;string_of_int start; string_of_int stop] in
 	apply_to_resp_reply connection "ZRANGE" args list_of_resp_array
-(* let zrange connection key start stop
-	zadd
-*)
-
-
 
 end
