@@ -210,6 +210,10 @@ let tuple_list_of_resp_array arr =
 	)
 	| _ -> failwith "Conversion to array failed"
 
+let list_of_resp_array arr = arr >>| fun res -> match res with
+| `Array arr -> arr
+| _ -> failwith "Conversion to array failed"
+
 let value_of_nil_or_resp conversion v = v >>= function
 	| `Nil -> return None
 	| `String _ | `Number _ | `Error _ | `Array _ -> conversion v >>| fun res -> Some res
@@ -337,11 +341,10 @@ let hget connection key field =
 let hdel connection key field field_lst =
 	apply_to_resp_reply connection "HDEL" (key::field::field_lst) bool_of_resp_num
 
-let zadd connection key ?nx_or_xx ?(ch = false) ?incr score_member_lst =
+let zadd connection key ?nx_or_xx ?(ch = false) ?(incr = false) score_member_lst =
 	let args = List.rev (List.fold_left score_member_lst ~init:[] ~f:(fun acc (score, member) -> (Float.to_string score)::member::acc)) in
-	let args = match incr with
-	| Some _ -> "INCR"::args
-	| None -> args in
+	let args = if incr then
+	"INCR"::args else args in
 	let args = if ch then
 	"CH"::args else
 	args in
@@ -362,7 +365,10 @@ let ltrim connection key start stop =
 let hgetall connection key =
 	apply_to_resp_reply connection "HGETALL" [key] tuple_list_of_resp_array
 
-
+let zrange connection key start stop ?(withscores = false) =
+	let args = if withscores then [key;string_of_int start; string_of_int stop; "WITHSCORES"] else
+	[key;string_of_int start; string_of_int stop] in
+	apply_to_resp_reply connection "ZRANGE" args list_of_resp_array
 (* let zrange connection key start stop
 	zadd
 *)

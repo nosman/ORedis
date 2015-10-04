@@ -29,6 +29,7 @@ end
 module type Api = sig
 	module I : IO
 
+	(*Make some functions return response lists. *)
 	type resp_response =  [ `String of string | `Nil | `Error of string | `Array of resp_response list | `Number of Int64.t ]
 
 	type fd = I.fd
@@ -122,8 +123,11 @@ module type Api = sig
 
 	val ltrim : I.writer * I.reader -> string -> int -> int -> string I.t
 
-	val zadd : I.writer * I.reader -> string -> ?nx_or_xx:[< `NX | `XX ] -> ?ch:bool -> ?incr:[< `INCR ] -> (float * string) list ->
+	(*can change *)
+	val zadd : I.writer * I.reader -> string -> ?nx_or_xx:[< `NX | `XX ] -> ?ch:bool -> ?incr:bool -> (float * string) list ->
 	int I.t
+
+	val zrange : I.writer * I.reader -> string -> int -> int -> ?withscores:bool -> resp_response list I.t
 
 	(*SortedSet operations *)
 
