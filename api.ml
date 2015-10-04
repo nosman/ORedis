@@ -337,8 +337,21 @@ let hget connection key field =
 let hdel connection key field field_lst =
 	apply_to_resp_reply connection "HDEL" (key::field::field_lst) bool_of_resp_num
 
-let zadd connection key ?nx_or_xx ?(ch = false) ?incr score member score_member_lst =
-	failwith "todo"
+let zadd connection key ?nx_or_xx ?(ch = false) ?incr score_member_lst =
+	let args = List.rev (List.fold_left score_member_lst ~init:[] ~f:(fun acc (score, member) -> (Float.to_string score)::member::acc)) in
+	let args = match incr with
+	| Some _ -> "INCR"::args
+	| None -> args in
+	let args = if ch then
+	"CH"::args else
+	args in
+	let args = match nx_or_xx with
+	| Some arg -> ( match arg with
+		|`XX -> ["XX"]
+		|`NX -> ["NX"]
+	)
+	| None -> args in
+	apply_to_resp_reply connection "ZADD" (key::args) int_of_resp_num
 
 let lpush connection key value value_lst =
 	apply_to_resp_reply connection "LPUSH" (key::value::value_lst) int_of_resp_num
@@ -349,8 +362,8 @@ let ltrim connection key start stop =
 let hgetall connection key =
 	apply_to_resp_reply connection "HGETALL" [key] tuple_list_of_resp_array
 
+
 (* let zrange connection key start stop
-	hgetall
 	zadd
 *)
 

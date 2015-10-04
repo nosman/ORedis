@@ -122,6 +122,9 @@ module type Api = sig
 
 	val ltrim : I.writer * I.reader -> string -> int -> int -> string I.t
 
+	val zadd : I.writer * I.reader -> string -> ?nx_or_xx:[< `NX | `XX ] -> ?ch:bool -> ?incr:[< `INCR ] -> (float * string) list ->
+	int I.t
+
 	(*SortedSet operations *)
 
 end
