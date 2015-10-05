@@ -113,6 +113,17 @@ module type Api = sig
 
 	val lpush :  I.writer * I.reader -> string -> string -> string list -> int I.t
 
+	val blrpoplpush : I.writer * I.reader -> string -> string -> int -> string option I.t
+
+	val rpoplpush : I.writer * I.reader -> string -> string -> string option I.t
+
+	val lindex : I.writer * I.reader -> string -> int -> string option I.t
+
+	val linsert : I.writer * I.reader -> string -> [< `Before | `After ] -> string -> string -> int option I.t
+
+	val llen : I.writer * I.reader -> string -> int I.t
+
+
 	val incr : I.writer * I.reader -> string -> int I.t
 
 	val hset : I.writer * I.reader -> string -> (string * string) -> bool I.t

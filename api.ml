@@ -181,6 +181,13 @@ let int_of_resp_num num =
 		| None -> failwith "int64 to int conversion failed")
 	| _ -> failwith "Wrong resp value passed in"
 
+let int_option_of_resp_num num =
+	num >>| function
+	`Number num -> (match Int64.to_int num with
+		| Some(x) -> if x = -1 then None else Some x
+		| None -> failwith "int64 to int conversion failed")
+	| _ -> failwith "Wrong resp value passed in"
+
 let string_of_resp_string str =
 	str >>| fun res -> match res with
 	`String s -> s
@@ -327,6 +334,24 @@ let blpop connection lsts timeout =
 
 let brpop connection lsts timeout =
 	apply_to_resp_reply connection "BRPOP" (lsts@[string_of_int timeout]) tuple_of_resp_array
+
+let blrpoplpush connection source dest timeout =
+	apply_to_resp_reply connection "BLRPOPLPUSH" [source;dest; string_of_int timeout] option_of_resp_string
+
+let lindex connection key index =
+	apply_to_resp_reply connection "LINDEX" [key;string_of_int index] option_of_resp_string
+
+let linsert connection key before_or_after pivot value =
+	let before_or_after = match before_or_after with
+	| `Before -> "BEFORE"
+	| `After -> "AFTER" in
+	apply_to_resp_reply connection "LINSERT" [key;before_or_after;pivot;value] int_option_of_resp_num
+
+let llen connection key =
+	apply_to_resp_reply connection "LLEN" [key] int_of_resp_num
+
+let rpoplpush connection source dest =
+	apply_to_resp_reply connection "RPOPLPUSH" [source;dest] option_of_resp_string
 
 let incr connection key =
 	apply_to_resp_reply connection "INCR" [key] int_of_resp_num
