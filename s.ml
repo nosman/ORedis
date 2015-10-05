@@ -111,7 +111,6 @@ module type Api = sig
 
 	val ltrim : I.writer * I.reader -> string -> int -> int -> string I.t
 
-	val lpush :  I.writer * I.reader -> string -> string -> string list -> int I.t
 
 	val blrpoplpush : I.writer * I.reader -> string -> string -> int -> string option I.t
 
@@ -122,6 +121,17 @@ module type Api = sig
 	val linsert : I.writer * I.reader -> string -> [< `Before | `After ] -> string -> string -> int option I.t
 
 	val llen : I.writer * I.reader -> string -> int I.t
+
+	val lpop : I.writer * I.reader -> string -> string I.t
+
+	val lpush :  I.writer * I.reader -> string -> string -> string list -> int I.t
+
+	val lpushx : I.writer * I.reader -> string -> string -> int I.t
+
+	val lrange : I.writer * I.reader -> string -> int -> int -> resp_response list I.t
+
+	(* How to make this function work with other types than string values? GADTs? *)
+	val lrem : I.writer * I.reader -> string -> int -> string -> int I.t
 
 
 	val incr : I.writer * I.reader -> string -> int I.t

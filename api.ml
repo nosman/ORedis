@@ -350,6 +350,21 @@ let linsert connection key before_or_after pivot value =
 let llen connection key =
 	apply_to_resp_reply connection "LLEN" [key] int_of_resp_num
 
+let lpop connection key =
+	apply_to_resp_reply connection "LPOP" [key] string_of_resp_string
+
+let lpush connection key value value_lst =
+	apply_to_resp_reply connection "LPUSH" (key::value::value_lst) int_of_resp_num
+
+let lpushx connection key value =
+	apply_to_resp_reply connection "LPUSHX" [key;value] int_of_resp_num
+
+let lrange connection key start stop =
+	apply_to_resp_reply connection "LRANGE" [key;string_of_int start; string_of_int stop] list_of_resp_array
+
+let lrem connection key count value =
+	apply_to_resp_reply connection "LREM" [key;string_of_int count; value] int_of_resp_num
+
 let rpoplpush connection source dest =
 	apply_to_resp_reply connection "RPOPLPUSH" [source;dest] option_of_resp_string
 
@@ -383,9 +398,6 @@ let zadd connection key ?nx_or_xx ?(ch = false) ?(incr = false) score_member_lst
 	)
 	| None -> args in
 	apply_to_resp_reply connection "ZADD" (key::args) int_of_resp_num
-
-let lpush connection key value value_lst =
-	apply_to_resp_reply connection "LPUSH" (key::value::value_lst) int_of_resp_num
 
 let ltrim connection key start stop =
 	apply_to_resp_reply connection "LTRIM" [key;string_of_int start; string_of_int stop] string_of_resp_string
