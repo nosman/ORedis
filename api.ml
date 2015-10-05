@@ -365,8 +365,23 @@ let lrange connection key start stop =
 let lrem connection key count value =
 	apply_to_resp_reply connection "LREM" [key;string_of_int count; value] int_of_resp_num
 
+let lset connection key index value =
+	apply_to_resp_reply connection "LSET" [key;string_of_int index; value] string_of_resp_string
+
+let ltrim connection key start stop =
+	apply_to_resp_reply connection "LTRIM" [key;string_of_int start; string_of_int stop] string_of_resp_string
+
+let rpop connection key =
+	apply_to_resp_reply connection "RPOP" [key] option_of_resp_string
+
 let rpoplpush connection source dest =
 	apply_to_resp_reply connection "RPOPLPUSH" [source;dest] option_of_resp_string
+
+let rpush connection key value_lst =
+	apply_to_resp_reply connection "RPUSH" (key::value_lst) int_of_resp_num
+
+let rpushx connection key value_lst =
+	apply_to_resp_reply connection "RPUSHX" (key::value_lst) int_of_resp_num
 
 let incr connection key =
 	apply_to_resp_reply connection "INCR" [key] int_of_resp_num
@@ -398,9 +413,6 @@ let zadd connection key ?nx_or_xx ?(ch = false) ?(incr = false) score_member_lst
 	)
 	| None -> args in
 	apply_to_resp_reply connection "ZADD" (key::args) int_of_resp_num
-
-let ltrim connection key start stop =
-	apply_to_resp_reply connection "LTRIM" [key;string_of_int start; string_of_int stop] string_of_resp_string
 
 let hgetall connection key =
 	apply_to_resp_reply connection "HGETALL" [key] tuple_list_of_resp_array
