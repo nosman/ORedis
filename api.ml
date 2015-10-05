@@ -322,8 +322,11 @@ let ttl connection key =
 let type_ connection key =
 	apply_to_resp_reply connection "TYPE" [key] string_of_resp_string
 
-let blpop connection lst lsts timeout =
-	apply_to_resp_reply connection "BLPOP" (lst::lsts@[string_of_int timeout]) tuple_of_resp_array
+let blpop connection lsts timeout =
+	apply_to_resp_reply connection "BLPOP" (lsts@[string_of_int timeout]) tuple_of_resp_array
+
+let brpop connection lsts timeout =
+	apply_to_resp_reply connection "BRPOP" (lsts@[string_of_int timeout]) tuple_of_resp_array
 
 let incr connection key =
 	apply_to_resp_reply connection "INCR" [key] int_of_resp_num

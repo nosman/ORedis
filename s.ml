@@ -105,7 +105,13 @@ module type Api = sig
 
 	(*List operations*)
 
-	val blpop : I.writer * I.reader -> string -> string list -> int -> (string * string) option I.t
+	val blpop : I.writer * I.reader -> string list -> int -> (string * string) option I.t
+
+	val brpop : I.writer * I.reader -> string list -> int -> (string * string) option I.t
+
+	val ltrim : I.writer * I.reader -> string -> int -> int -> string I.t
+
+	val lpush :  I.writer * I.reader -> string -> string -> string list -> int I.t
 
 	val incr : I.writer * I.reader -> string -> int I.t
 
@@ -119,9 +125,6 @@ module type Api = sig
 
 	val hdel : I.writer * I.reader -> string -> string -> string list -> bool I.t
 
-	val lpush :  I.writer * I.reader -> string -> string -> string list -> int I.t
-
-	val ltrim : I.writer * I.reader -> string -> int -> int -> string I.t
 
 	(*can change *)
 	val zadd : I.writer * I.reader -> string -> ?nx_or_xx:[< `NX | `XX ] -> ?ch:bool -> ?incr:bool -> (float * string) list ->
