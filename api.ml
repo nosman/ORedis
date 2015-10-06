@@ -29,7 +29,7 @@ let default_host = "localhost"
 
 let default_port = 6379
 
-type connection = writer * reader
+type connection = reader * writer
 
 let nil_bulk_string = "$-1\r\n"
 
@@ -130,7 +130,7 @@ and parse_resp r =
 let get_command reader =
 	parse_resp reader 
 
-let send_command (writer, reader) comm args =
+let send_command (reader, writer) comm args =
 	write_command writer comm args >>=
 	fun () -> get_command reader
 
@@ -398,6 +398,23 @@ let hget connection key field =
 
 let hdel connection key field field_lst =
 	apply_to_resp_reply connection "HDEL" (key::field::field_lst) bool_of_resp_num
+
+
+(* Add a new helper function in addition to apply_to_resp_reply *)
+let watch connection keys =
+	apply_to_resp_reply connection "WATCH" keys string_of_resp_string
+
+let unwatch connection =
+	apply_to_resp_reply connection "WATCH" [] (fun _ -> return ())
+
+let multi connection =
+	apply_to_resp_reply connection "MULTI" [] (fun _ -> return ())
+
+let discard connection =
+	apply_to_resp_reply connection "DISCARD" [] (fun _ -> return ())
+
+let exec connection =
+	apply_to_resp_reply connection "EXEC" [] (fun _ -> return ())
 
 let zadd connection key ?nx_or_xx ?(ch = false) ?(incr = false) score_member_lst =
 	let args = List.rev (List.fold_left score_member_lst ~init:[] ~f:(fun acc (score, member) -> (Float.to_string score)::member::acc)) in
